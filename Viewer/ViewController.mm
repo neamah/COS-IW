@@ -553,7 +553,8 @@ const uint16_t maxShiftValue = 2048;
     uint16_t min = INFINITY;
     
     float totalFrameVol = 0;
-    float pixelArea = pow(0.10897887323, 2);
+    //float pixelArea = pow(0.10897887323, 2);
+    float pixelArea = pow(0.0779, 2);
     
     for (int i = 0; i < numPixels; i++) {
         //Find the max depth
@@ -571,6 +572,9 @@ const uint16_t maxShiftValue = 2048;
     //max and min heights in cm
     max = max / ((uint16_t) 10);
     min = min / ((uint16_t) 10);
+    
+    //Get total frame vol in cm^3
+    totalFrameVol = totalFrameVol / (float) 1000;
     
     [_MaxDepth setText:[NSString stringWithFormat:@"Max: %f", totalFrameVol]];
     //depthFrame = nil;
