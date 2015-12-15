@@ -573,10 +573,7 @@ const uint16_t maxShiftValue = 2048;
     max = max / ((uint16_t) 10);
     min = min / ((uint16_t) 10);
     
-    //Get total frame vol in cm^3
-    totalFrameVol = totalFrameVol / (float) 1000;
-    
-    [_MaxDepth setText:[NSString stringWithFormat:@"Max: %f", totalFrameVol]];
+    [_MaxDepth setText:[NSString stringWithFormat:@"Max: %f", (totalFrameVol / (float) 1000)]];
     //depthFrame = nil;
     
     NSData *data = [NSData dataWithBytes:depthVisData length:cols * rows * 2]; //2 bytes, not 4, bc 16 bit float
