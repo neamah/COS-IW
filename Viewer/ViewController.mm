@@ -524,9 +524,6 @@ const uint16_t maxShiftValue = 2048;
         depthNoVisData[i] = (uint16_t)(depthFrame.depthInMillimeters[i]);
     }
     
-    //Hardcoded camera height option in mm.
-    float cameraHeight = 700;
-    
     //Sensed camera height in mm.
     //Hack 1: Take an average of all the border pixels, assuming camera is parallel to ground and the volume to be taken is not on the border of the image.
     float sumBorderHeights = 0;
@@ -534,7 +531,7 @@ const uint16_t maxShiftValue = 2048;
     //Top and bottom rows
     for (int i = 0; i < cols; i++) {
         sumBorderHeights += depthNoVisData[i];
-        sumBorderHeights += depthNoVisData[(4*cols) + i];
+        sumBorderHeights += depthNoVisData[((rows-1)*cols) + i];
     }
     //Right column, minus top and bottom rows.
     for (int i = 2; i < rows; i++) {
