@@ -61,6 +61,9 @@ struct AppStatus
     __weak IBOutlet UIButton *button;
     __weak IBOutlet UIButton *buttoniPhone;
     
+    double avgVolume;
+    double frameCount;
+    
     AppStatus _appStatus;
     
 }
@@ -480,6 +483,10 @@ const uint16_t maxShiftValue = 2048;
     // Save image.
     [UIImagePNGRepresentation(_depthImageView.image) writeToFile:filePath atomically:YES];
     [buttoniPhone setBackgroundColor:[UIColor blueColor]];
+    
+    avgVolume = 0;
+    frameCount = 0;
+    
 }
 
 
@@ -493,7 +500,10 @@ const uint16_t maxShiftValue = 2048;
     
     // Save image.
     [UIImagePNGRepresentation(_depthImageView.image) writeToFile:filePath atomically:YES];
-    [button setBackgroundColor:[UIColor blueColor]];    
+    [button setBackgroundColor:[UIColor blueColor]];
+    
+    avgVolume = 0;
+    frameCount = 0;
 }
 
 - (void)renderDepthFrame:(STDepthFrame *)depthFrame
@@ -542,38 +552,62 @@ const uint16_t maxShiftValue = 2048;
         sumBorderHeights += depthNoVisData[i*cols];
     }
     
-    //Take an average over num border pixels.
+    //Take an average in mm over num border pixels.
     size_t numBorderPixels = 2*cols + 2*(rows-2);
     float avgCameraHeight = sumBorderHeights / (float) numBorderPixels;
     
-    uint16_t max = -INFINITY;
-    uint16_t min = INFINITY;
-    
-    float totalFrameVol = 0;
-    //float pixelArea = pow(0.10897887323, 2);
-    float pixelArea = pow(0.0779, 2);
+    double totalFrameVol = 0;
+    double totalSurfaceArea = 0;
+    double frameSurfaceArea = 0;
+
+    // Measured angles of projection in radians
+    double theta_y = 0.40837;
+    double theta_x = 0.50255;
+    double halfHeight = (double) rows/ (double)2;
+    double halfWidth = (double) cols/ (double)2;
     
     for (int i = 0; i < numPixels; i++) {
-        //Find the max depth
-        if (depthNoVisData[i] > max) max = depthNoVisData[i];
-        //Find the min depth
-        if (depthNoVisData[i] < min) min = depthNoVisData[i];
         
-        //find a way to use max depth here, instead of cameraHeight. Maybe from previous run, if camera is fairly stationary?
+        //if object protruding from ground
         if (depthNoVisData[i] < avgCameraHeight) {
+            
+            double x = (avgCameraHeight*tan(theta_x))/halfHeight;
+            double y = (avgCameraHeight*tan(theta_y))/halfWidth;
+            double x2 = (depthNoVisData[i]*tan(theta_x))/halfHeight;
+            double y2 = (depthNoVisData[i]*tan(theta_y))/halfWidth;
+            
+            //double term1 = ((double)avgCameraHeight - (double)depthNoVisData[i])/(double)3;
+            //double result = term1 * ((x*y) + (x2*y2) + sqrt(x*y*x2*y2));
+            double result = x2*y2*(avgCameraHeight - (double)depthNoVisData[i]);
+            totalSurfaceArea += (x2*y2);
+            
             //volume of that column in mm^3
-            totalFrameVol = totalFrameVol + (pixelArea * (avgCameraHeight-(float)depthNoVisData[i]));
+            totalFrameVol += result;
         }
+        
+        double x = (avgCameraHeight*tan(theta_x))/halfHeight;
+        double y = (avgCameraHeight*tan(theta_y))/halfWidth;
+        double area = x*y;
+        frameSurfaceArea += area;
     }
     
-    //max and min heights in cm
-    max = max / ((uint16_t) 10);
-    min = min / ((uint16_t) 10);
-    
     //Get total frame vol in cm^3
-    totalFrameVol = totalFrameVol / (float) 1000;
+    totalFrameVol = totalFrameVol / (double) 1000;
+    totalSurfaceArea = totalSurfaceArea / (double) 100;
+    frameSurfaceArea = frameSurfaceArea / (double) 100;
     
-    [_MaxDepth setText:[NSString stringWithFormat:@"Max: %f", totalFrameVol]];
+    //Get the average total volume so far.
+    double sumVolume = avgVolume*frameCount + totalFrameVol;
+    frameCount++;
+    avgVolume = sumVolume / frameCount;
+    
+    [_MaxDepth setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
+    [_MaxDepthiPad setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
+    [_surfaceAreaiPad setText:[NSString stringWithFormat:@"S-Area: %g", totalSurfaceArea]];
+    [_surfaceAreaiPhone setText:[NSString stringWithFormat:@"S-Area: %g", totalSurfaceArea]];
+    [_frameSAiPad setText:[NSString stringWithFormat:@"FSA: %g", frameSurfaceArea]];
+    [_frameSAiPhone setText:[NSString stringWithFormat:@"FSA: %g", frameSurfaceArea]];
+
     //depthFrame = nil;
     
     NSData *data = [NSData dataWithBytes:depthVisData length:cols * rows * 2]; //2 bytes, not 4, bc 16 bit float

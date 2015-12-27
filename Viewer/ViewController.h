@@ -13,5 +13,10 @@
 - (IBAction)buttonTapped:(UIButton *)sender;
 - (IBAction)buttonTappediPhone:(UIButton *)sender;
 @property (weak, nonatomic) IBOutlet UILabel *MaxDepth;
+@property (weak, nonatomic) IBOutlet UILabel *MaxDepthiPad;
+@property (weak, nonatomic) IBOutlet UILabel *surfaceAreaiPad;
+@property (weak, nonatomic) IBOutlet UILabel *surfaceAreaiPhone;
+@property (weak, nonatomic) IBOutlet UILabel *frameSAiPad;
+@property (weak, nonatomic) IBOutlet UILabel *frameSAiPhone;
 
 @end
