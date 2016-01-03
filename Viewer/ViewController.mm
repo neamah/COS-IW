@@ -554,15 +554,29 @@ const uint16_t maxShiftValue = 2048;
     
     //Take an average in mm over num border pixels.
     size_t numBorderPixels = 2*cols + 2*(rows-2);
-    float avgCameraHeight = sumBorderHeights / (float) numBorderPixels;
+    double avgCameraHeight = sumBorderHeights / (double) numBorderPixels;
+    
+    // Figure out thetas! [TEMPORARY CODE]
+    // Hard code the size of the frame you'll be looking at.
+    // Use the averageCameraHeight in mm for h.
+    // Half size of height (x) = 400mm
+    // Half size of width (y) = 530mm
+    double xHalfSize = 400;
+    double yHalfSize = 530;
+    double theta_x_2 = atan(xHalfSize/avgCameraHeight);
+    double theta_y_2 = atan(yHalfSize/avgCameraHeight);
     
     double totalFrameVol = 0;
     double totalSurfaceArea = 0;
     double frameSurfaceArea = 0;
+    double totalSA_exp = 0;
 
     // Measured angles of projection in radians
-    double theta_y = 0.40837;
-    double theta_x = 0.50255;
+    // double theta_y = 0.40837;
+    // double theta_x = 0.50255;
+    // Corrected for correct angle measurements, as determined by the temporary code above.
+    double theta_x = 0.492;
+    double theta_y = 0.615;
     double halfHeight = (double) rows/ (double)2;
     double halfWidth = (double) cols/ (double)2;
     
@@ -575,6 +589,11 @@ const uint16_t maxShiftValue = 2048;
             double y = (avgCameraHeight*tan(theta_y))/halfWidth;
             double x2 = (depthNoVisData[i]*tan(theta_x))/halfHeight;
             double y2 = (depthNoVisData[i]*tan(theta_y))/halfWidth;
+            
+            //EXPERIMENTAL THETAS
+            double x_exp = (avgCameraHeight*tan(theta_x_2))/halfHeight;
+            double y_exp = (avgCameraHeight*tan(theta_y_2))/halfWidth;
+            totalSA_exp += (x_exp*y_exp);
             
             //double term1 = ((double)avgCameraHeight - (double)depthNoVisData[i])/(double)3;
             //double result = term1 * ((x*y) + (x2*y2) + sqrt(x*y*x2*y2));
@@ -607,6 +626,12 @@ const uint16_t maxShiftValue = 2048;
     [_surfaceAreaiPhone setText:[NSString stringWithFormat:@"S-Area: %g", totalSurfaceArea]];
     [_frameSAiPad setText:[NSString stringWithFormat:@"FSA: %g", frameSurfaceArea]];
     [_frameSAiPhone setText:[NSString stringWithFormat:@"FSA: %g", frameSurfaceArea]];
+    [_thetaXiPad setText:[NSString stringWithFormat:@"thetaX: %g", theta_x_2]];
+    [_thetaYiPad setText:[NSString stringWithFormat:@"thetaY: %g", theta_y_2]];
+    [_SAexpiPad setText:[NSString stringWithFormat:@"ExpSA: %g", totalSA_exp]];
+
+
+
 
     //depthFrame = nil;
     

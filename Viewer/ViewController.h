@@ -18,5 +18,8 @@
 @property (weak, nonatomic) IBOutlet UILabel *surfaceAreaiPhone;
 @property (weak, nonatomic) IBOutlet UILabel *frameSAiPad;
 @property (weak, nonatomic) IBOutlet UILabel *frameSAiPhone;
+@property (weak, nonatomic) IBOutlet UILabel *thetaXiPad;
+@property (weak, nonatomic) IBOutlet UILabel *thetaYiPad;
+@property (weak, nonatomic) IBOutlet UILabel *SAexpiPad;
 
 @end
