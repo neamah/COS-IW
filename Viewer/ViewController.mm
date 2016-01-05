@@ -506,6 +506,34 @@ const uint16_t maxShiftValue = 2048;
     frameCount = 0;
 }
 
+- (double)getAvgCamHeight:(uint16_t *)depthNoVisData rows:(size_t)rows cols:(size_t)cols
+{
+    //Sensed camera height in mm.
+    //Hack 1: Take an average of all the border pixels, assuming camera is parallel to ground and the volume to be taken is not on the border of the image.
+    float sumBorderHeights = 0;
+    
+    //Top and bottom rows
+    for (int i = 0; i < cols; i++) {
+        sumBorderHeights += depthNoVisData[i];
+        sumBorderHeights += depthNoVisData[((rows-1)*cols) + i];
+    }
+    //Right column, minus top and bottom rows.
+    for (int i = 2; i < rows; i++) {
+        sumBorderHeights += depthNoVisData[(i*cols) - 1];
+    }
+    //Left column, minus top and bottom rows.
+    for (int i = 1; i < (rows-1); i++) {
+        sumBorderHeights += depthNoVisData[i*cols];
+    }
+    
+    //Take an average in mm over num border pixels.
+    size_t numBorderPixels = 2*cols + 2*(rows-2);
+    double avgCameraHeight = sumBorderHeights / (double) numBorderPixels;
+    
+    return avgCameraHeight;
+    
+}
+
 - (void)renderDepthFrame:(STDepthFrame *)depthFrame
 {
     size_t cols = depthFrame.width;
@@ -529,109 +557,103 @@ const uint16_t maxShiftValue = 2048;
     uint16_t *depthNoVisData = (uint16_t *)malloc(numPixels * sizeof(uint16_t));
     
     //Fill in depth data
+    double maxDepth = -INFINITY;
+    
     for (int i = 0; i < numPixels; i++) {
         depthVisData[i] = (uint16_t)(depthFrame.depthInMillimeters[i]) << 3; // << 3 for vis
         depthNoVisData[i] = (uint16_t)(depthFrame.depthInMillimeters[i]);
+        if ((double) depthNoVisData[i] > maxDepth) {
+            maxDepth = (double) depthNoVisData[i];
+        }
     }
     
-    //Sensed camera height in mm.
-    //Hack 1: Take an average of all the border pixels, assuming camera is parallel to ground and the volume to be taken is not on the border of the image.
-    float sumBorderHeights = 0;
+    //Get the height of the camera from the flat surface
+    double avgCameraHeight = [self getAvgCamHeight:depthNoVisData rows:rows cols:cols];
     
-    //Top and bottom rows
-    for (int i = 0; i < cols; i++) {
-        sumBorderHeights += depthNoVisData[i];
-        sumBorderHeights += depthNoVisData[((rows-1)*cols) + i];
-    }
-    //Right column, minus top and bottom rows.
-    for (int i = 2; i < rows; i++) {
-        sumBorderHeights += depthNoVisData[(i*cols) - 1];
-    }
-    //Left column, minus top and bottom rows.
-    for (int i = 1; i < (rows-1); i++) {
-        sumBorderHeights += depthNoVisData[i*cols];
-    }
-    
-    //Take an average in mm over num border pixels.
-    size_t numBorderPixels = 2*cols + 2*(rows-2);
-    double avgCameraHeight = sumBorderHeights / (double) numBorderPixels;
-    
-    // Figure out thetas! [TEMPORARY CODE]
-    // Hard code the size of the frame you'll be looking at.
-    // Use the averageCameraHeight in mm for h.
-    // Half size of height (x) = 400mm
-    // Half size of width (y) = 530mm
+    // [TEMPORARY CODE]: Figure out thetas!
+    // Hard code the size of the frame you'll be looking at. Use the averageCameraHeight in mm for h.
     double xHalfSize = 400;
     double yHalfSize = 530;
-    double theta_x_2 = atan(xHalfSize/avgCameraHeight);
-    double theta_y_2 = atan(yHalfSize/avgCameraHeight);
+    double theta_x_2 = atan(xHalfSize/maxDepth); ////
+    double theta_y_2 = atan(yHalfSize/maxDepth); ////
     
+    // Initialize metrics to zeros
     double totalFrameVol = 0;
     double totalSurfaceArea = 0;
     double frameSurfaceArea = 0;
-    double totalSA_exp = 0;
+    double avgPixelHeight = 0;
+    double protrudingPixelCount = 0;
 
-    // Measured angles of projection in radians
-    // double theta_y = 0.40837;
-    // double theta_x = 0.50255;
-    // Corrected for correct angle measurements, as determined by the temporary code above.
-    double theta_x = 0.492;
-    double theta_y = 0.615;
+    // Calibrated angles of projection in radians
+    //double theta_x = 0.492;
+    //double theta_y = 0.615;
+    double theta_x = 0.395;
+    double theta_y = 0.505;
+    
     double halfHeight = (double) rows/ (double)2;
     double halfWidth = (double) cols/ (double)2;
     
     for (int i = 0; i < numPixels; i++) {
         
         //if object protruding from ground
-        if (depthNoVisData[i] < avgCameraHeight) {
+        if (depthNoVisData[i] < avgCameraHeight) { ////
             
-            double x = (avgCameraHeight*tan(theta_x))/halfHeight;
-            double y = (avgCameraHeight*tan(theta_y))/halfWidth;
+            // Get average height of protruding pixels from ground in this frame.
+            double totalHeightObject = avgPixelHeight*protrudingPixelCount;
+            totalHeightObject += (avgCameraHeight - depthNoVisData[i]); ////
+            protrudingPixelCount++;
+            avgPixelHeight = totalHeightObject / protrudingPixelCount;
+            
+            double x = (avgCameraHeight*tan(theta_x))/halfHeight; ////
+            double y = (avgCameraHeight*tan(theta_y))/halfWidth; ////
             double x2 = (depthNoVisData[i]*tan(theta_x))/halfHeight;
             double y2 = (depthNoVisData[i]*tan(theta_y))/halfWidth;
-            
-            //EXPERIMENTAL THETAS
-            double x_exp = (avgCameraHeight*tan(theta_x_2))/halfHeight;
-            double y_exp = (avgCameraHeight*tan(theta_y_2))/halfWidth;
-            totalSA_exp += (x_exp*y_exp);
-            
+
             //double term1 = ((double)avgCameraHeight - (double)depthNoVisData[i])/(double)3;
             //double result = term1 * ((x*y) + (x2*y2) + sqrt(x*y*x2*y2));
-            double result = x2*y2*(avgCameraHeight - (double)depthNoVisData[i]);
+            double result = x2*y2*(maxDepth - (double)depthNoVisData[i]); ////
             totalSurfaceArea += (x2*y2);
             
             //volume of that column in mm^3
             totalFrameVol += result;
         }
         
-        double x = (avgCameraHeight*tan(theta_x))/halfHeight;
-        double y = (avgCameraHeight*tan(theta_y))/halfWidth;
+        double x = (maxDepth*tan(theta_x))/halfHeight; ////
+        double y = (maxDepth*tan(theta_y))/halfWidth; ////
         double area = x*y;
         frameSurfaceArea += area;
     }
     
-    //Get total frame vol in cm^3
+    //Get metrics in cm units
     totalFrameVol = totalFrameVol / (double) 1000;
     totalSurfaceArea = totalSurfaceArea / (double) 100;
     frameSurfaceArea = frameSurfaceArea / (double) 100;
+    avgPixelHeight = avgPixelHeight / (double) 10;
+    avgCameraHeight = avgCameraHeight / (double) 10;
+    maxDepth = maxDepth / (double) 10;
+    uint16_t midPoint = depthNoVisData[(cols*(rows/2))-(cols/2)] / 10;
     
     //Get the average total volume so far.
     double sumVolume = avgVolume*frameCount + totalFrameVol;
     frameCount++;
     avgVolume = sumVolume / frameCount;
     
-    [_MaxDepth setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
-    [_MaxDepthiPad setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
-    [_surfaceAreaiPad setText:[NSString stringWithFormat:@"S-Area: %g", totalSurfaceArea]];
-    [_surfaceAreaiPhone setText:[NSString stringWithFormat:@"S-Area: %g", totalSurfaceArea]];
-    [_frameSAiPad setText:[NSString stringWithFormat:@"FSA: %g", frameSurfaceArea]];
-    [_frameSAiPhone setText:[NSString stringWithFormat:@"FSA: %g", frameSurfaceArea]];
+    //[_MaxDepth setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
+    //[_MaxDepthiPad setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
+    [_finalVolume setText:[NSString stringWithFormat:@"Vol: %g", avgVolume]];
+    [_surfaceAreaiPad setText:[NSString stringWithFormat:@"ObjSA: %g", totalSurfaceArea]];
+    [_surfaceAreaiPhone setText:[NSString stringWithFormat:@"ObjSA: %g", totalSurfaceArea]];
+    [_frameSAiPad setText:[NSString stringWithFormat:@"FrameSA: %g", frameSurfaceArea]];
+    [_frameSAiPhone setText:[NSString stringWithFormat:@"FrameSA: %g", frameSurfaceArea]];
     [_thetaXiPad setText:[NSString stringWithFormat:@"thetaX: %g", theta_x_2]];
     [_thetaYiPad setText:[NSString stringWithFormat:@"thetaY: %g", theta_y_2]];
-    [_SAexpiPad setText:[NSString stringWithFormat:@"ExpSA: %g", totalSA_exp]];
+    [_avgPixHeightiPad setText:[NSString stringWithFormat:@"avgPixHeight: %g", avgPixelHeight]];
+    [_avgCameraHeightiPad setText:[NSString stringWithFormat:@"avgCamHeight: %g", avgCameraHeight]];
+    [_maxDepthiPad setText:[NSString stringWithFormat:@"maxDepth: %g", maxDepth]];
+    [_midPointHeight setText:[NSString stringWithFormat:@"midHeight: %d", (uint16_t) maxDepth - midPoint]];
 
 
-
+    
 
     //depthFrame = nil;
     

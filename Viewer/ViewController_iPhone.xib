@@ -8,7 +8,6 @@
     <objects>
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="ViewController">
             <connections>
-                <outlet property="MaxDepth" destination="Huk-Ih-paM" id="NOa-Ir-VGf"/>
                 <outlet property="buttoniPhone" destination="vZz-fK-rox" id="qMf-U1-Q9J"/>
                 <outlet property="frameSAiPhone" destination="CHZ-G5-MQP" id="6w4-Mz-JIU"/>
                 <outlet property="surfaceAreaiPhone" destination="JYR-nn-MTg" id="80J-g3-B2Q"/>
