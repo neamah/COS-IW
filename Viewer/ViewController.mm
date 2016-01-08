@@ -596,21 +596,22 @@ const uint16_t maxShiftValue = 2048;
     for (int i = 0; i < numPixels; i++) {
         
         //if object protruding from ground
-        if (depthNoVisData[i] < avgCameraHeight) { ////
-            
+        //if (depthNoVisData[i] < maxDepth - 0.05*maxDepth) { ////
+        if (depthNoVisData[i] < avgCameraHeight) {
+        
             // Get average height of protruding pixels from ground in this frame.
             double totalHeightObject = avgPixelHeight*protrudingPixelCount;
             totalHeightObject += (avgCameraHeight - depthNoVisData[i]); ////
             protrudingPixelCount++;
             avgPixelHeight = totalHeightObject / protrudingPixelCount;
             
-            double x = (avgCameraHeight*tan(theta_x))/halfHeight; ////
-            double y = (avgCameraHeight*tan(theta_y))/halfWidth; ////
+            //double x = (maxDepth*tan(theta_x))/halfHeight; ////
+            //double y = (maxDepth*tan(theta_y))/halfWidth; ////
             double x2 = (depthNoVisData[i]*tan(theta_x))/halfHeight;
             double y2 = (depthNoVisData[i]*tan(theta_y))/halfWidth;
 
             //double term1 = ((double)avgCameraHeight - (double)depthNoVisData[i])/(double)3;
-            //double result = term1 * ((x*y) + (x2*y2) + sqrt(x*y*x2*y2));
+            //double result1 = term1 * ((x*y) + (x2*y2) + sqrt(x*y*x2*y2));
             double result = x2*y2*(maxDepth - (double)depthNoVisData[i]); ////
             totalSurfaceArea += (x2*y2);
             
@@ -651,8 +652,6 @@ const uint16_t maxShiftValue = 2048;
     [_avgCameraHeightiPad setText:[NSString stringWithFormat:@"avgCamHeight: %g", avgCameraHeight]];
     [_maxDepthiPad setText:[NSString stringWithFormat:@"maxDepth: %g", maxDepth]];
     [_midPointHeight setText:[NSString stringWithFormat:@"midHeight: %d", (uint16_t) maxDepth - midPoint]];
-
-
     
 
     //depthFrame = nil;
